@@ -1,5 +1,5 @@
 // One.aidl
-package lg.example.myapplication;
+package lg.example.clientoneipc;
 
 // Declare any non-default types here with import statements
 

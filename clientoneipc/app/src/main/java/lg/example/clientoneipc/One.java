@@ -1,4 +1,4 @@
-package lg.example.myapplication;
+package lg.example.clientoneipc;
 
 import android.os.Parcel;
 import android.os.Parcelable;

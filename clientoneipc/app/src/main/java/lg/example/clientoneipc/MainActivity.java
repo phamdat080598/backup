@@ -1,4 +1,4 @@
-package lg.example.myapplication.main;
+package lg.example.clientoneipc;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -13,7 +13,6 @@ import android.util.Log;
 import android.view.View;
 
 import lg.example.myapplication.IRemoteObjectOne;
-import lg.example.myapplication.One;
 
 
 public class MainActivity extends AppCompatActivity {
