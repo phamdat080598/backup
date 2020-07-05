@@ -2,6 +2,8 @@ package lg.example.finaltest.configuration;
 
 import android.os.RemoteException;
 
+import dcv.finaltest.configuration.IConfigurationService;
+
 public class ConfigurationService extends IConfigurationService.Stub{
 
     @Override

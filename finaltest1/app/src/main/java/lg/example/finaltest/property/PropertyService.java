@@ -8,6 +8,9 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import dcv.finaltest.property.IPropertyEventListener;
+import dcv.finaltest.property.IPropertyService;
+
 public class PropertyService extends IPropertyService.Stub {
     private static String TAG = "PropertyService";
     private Map<Integer, ArraySet<IPropertyEventListener>> map = new HashMap<>();
@@ -43,10 +46,9 @@ public class PropertyService extends IPropertyService.Stub {
     }
 
     @Override
-    public void setProperty(int prodID, int value) throws RemoteException {
+    public void setProperty(int prodID, PropertyEvent value) throws RemoteException {
 
     }
-
 
 
 }

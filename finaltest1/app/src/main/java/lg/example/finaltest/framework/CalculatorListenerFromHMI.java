@@ -11,36 +11,41 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-
-import lg.example.finaltest.hmiapplication.IHMIListener;
-import lg.example.finaltest.hmiapplication.IServiceInterface;
+import dcv.finaltest.configuration.IConfigurationService;
+import dcv.finaltest.hmiapplication.IHMIListener;
+import dcv.finaltest.hmiapplication.IServiceInterface;
+import dcv.finaltest.property.IPropertyService;
 import lg.example.finaltest.hmiapplication.TestCapability;
+import lg.example.finaltest.property.PropertyEvent;
+
+import static dcv.finaltest.property.IPropertyService.PROP_CONSUMPTION_UNIT;
 
 public class CalculatorListenerFromHMI extends IServiceInterface.Stub {
-
     private static final String TAG = "CalculatorListenerFromHMI";
 
     private HandlerThread mHandlerThread;
     private CalculatorServiceHandler mHandlerCalculator;
+    private Client mClient = null;
+    private IPropertyService mPropertyClient;
+    private IConfigurationService mConfigurationClient;
+    private RegisterCalculatorServiceListener mRegisterCalculatorListener;
 
-    private Map<IBinder,Client>  mClientMap = new ConcurrentHashMap<>();
-
-    private TestCapability capability;
-    private IChangeUnitListener changeUnitListener;
-
-    /**
-     * set capability
-     * */
-    public void setCapability(TestCapability capability) {
-        this.capability = capability;
+    public CalculatorListenerFromHMI(RegisterCalculatorServiceListener listener) {
+        mHandlerThread = new HandlerThread(TAG);
+        mHandlerThread.start();
+        mHandlerCalculator = new CalculatorServiceHandler(mHandlerThread.getLooper());
+        mRegisterCalculatorListener = listener;
     }
 
-    private class CalculatorServiceHandler extends Handler{
+    public void setPropertyService(IPropertyService mPropertyClient) {
+        this.mPropertyClient = mPropertyClient;
+    }
+
+    public void setConfigurationClient(IConfigurationService mConfigurationClient) {
+        this.mConfigurationClient = mConfigurationClient;
+    }
+
+    private class CalculatorServiceHandler extends Handler {
 
         private static final int MSG_REGISTER_CALCULATOR_LISTENER = 1;
         private static final int MSG_UNREGISTER_CALCULATOR_LISTENER = 2;
@@ -54,73 +59,117 @@ public class CalculatorListenerFromHMI extends IServiceInterface.Stub {
 
         @Override
         public void handleMessage(@NonNull Message msg) {
-            if(msg.what == MSG_REGISTER_CALCULATOR_LISTENER){
+            if (msg.what == MSG_REGISTER_CALCULATOR_LISTENER) {
                 IHMIListener listener = (IHMIListener) msg.obj;
-                if(listener==null){
+                if (listener == null) {
                     return;
                 }
                 registerCalculatorBinderLocked(listener);
-            }else if(msg.what == MSG_UNREGISTER_CALCULATOR_LISTENER){
+            } else if (msg.what == MSG_UNREGISTER_CALCULATOR_LISTENER) {
                 IHMIListener listener = (IHMIListener) msg.obj;
-                if(listener==null){
+                if (listener == null) {
                     return;
                 }
                 unregisterCalculatorBinderLocked(listener);
-            }else if(msg.what == MSG_SET_DISTANCE_UNIT){
-                setDistanceUnitBinderLocked((Integer)msg.obj);
-            }else if(msg.what == MSG_SET_CONSUMPTION_UNIT){
-                setConsumptionUnitBinderLocked((Integer)msg.obj);
-            }else{
+            } else if (msg.what == MSG_SET_DISTANCE_UNIT) {
+                setDistanceUnitBinderLocked((Integer) msg.obj);
+            } else if (msg.what == MSG_SET_CONSUMPTION_UNIT) {
+                setConsumptionUnitBinderLocked((Integer) msg.obj);
+            } else {
                 setResetBinderLocked();
             }
         }
 
         @SuppressLint("LongLogTag")
-        void registerCalculatorListener(IHMIListener listener){
-            if(!sendMessage(obtainMessage(MSG_REGISTER_CALCULATOR_LISTENER,listener))){
-                Log.e(TAG, "sendMessage fail: "+MSG_REGISTER_CALCULATOR_LISTENER);
+        void registerCalculatorListener(IHMIListener listener) {
+            if (!sendMessage(obtainMessage(MSG_REGISTER_CALCULATOR_LISTENER, listener))) {
+                Log.e(TAG, "sendMessage fail: " + MSG_REGISTER_CALCULATOR_LISTENER);
             }
         }
 
         @SuppressLint("LongLogTag")
-        void unregisterCalculatorListener(IHMIListener listener){
-            if(!sendMessage(obtainMessage(MSG_UNREGISTER_CALCULATOR_LISTENER,listener))) {
+        void unregisterCalculatorListener(IHMIListener listener) {
+            if (!sendMessage(obtainMessage(MSG_UNREGISTER_CALCULATOR_LISTENER, listener))) {
                 Log.e(TAG, "sendMessage fail: " + MSG_UNREGISTER_CALCULATOR_LISTENER);
             }
         }
 
         @SuppressLint("LongLogTag")
-        void setDistanceUnitValue(int unit){
-            if(!sendMessage(obtainMessage(MSG_SET_DISTANCE_UNIT,unit))){
+        void setDistanceUnitValue(int unit) {
+            if (!sendMessage(obtainMessage(MSG_SET_DISTANCE_UNIT, unit))) {
                 Log.e(TAG, "sendMessage fail: " + MSG_SET_DISTANCE_UNIT);
             }
         }
 
         @SuppressLint("LongLogTag")
-        void setConsumptionUnitValue(int unit){
-            if(!sendMessage(obtainMessage(MSG_SET_CONSUMPTION_UNIT,unit))){
+        void setConsumptionUnitValue(int unit) {
+            if (!sendMessage(obtainMessage(MSG_SET_CONSUMPTION_UNIT, unit))) {
                 Log.e(TAG, "sendMessage fail: " + MSG_SET_CONSUMPTION_UNIT);
             }
         }
 
         @SuppressLint("LongLogTag")
-        void  resetDataListener(){
-            if(!sendMessage(obtainMessage(MSG_RESET_DATA))){
+        void resetDataListener() {
+            if (!sendMessage(obtainMessage(MSG_RESET_DATA))) {
                 Log.e(TAG, "sendMessage fail: " + MSG_RESET_DATA);
             }
         }
     }
 
-    private void setResetBinderLocked() {
-
+    private void registerCalculatorBinderLocked(IHMIListener listener) {
+        if (mClient == null) {
+            mClient = new Client(listener);
+        }
     }
 
+    /**
+     * in case many client use listener clear in list Client
+     */
+    private void unregisterCalculatorBinderLocked(IHMIListener listener) {
+        if (mClient == null) {
+            return;
+        }
+        mClient.release();
+        mClient = null;
+    }
+
+    @SuppressLint("LongLogTag")
     private void setConsumptionUnitBinderLocked(int unit) {
-        changeUnitListener.onChangeConsumptionUnit(unit);
+        if (mPropertyClient == null) {
+            Log.d(TAG, "not connected Property Service !");
+            return;
+        }
+        try {
+            mPropertyClient.setProperty(PROP_CONSUMPTION_UNIT, new PropertyEvent(PROP_CONSUMPTION_UNIT, PropertyEvent.STATUS_AVAILABLE, 0, unit));
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 
+    @SuppressLint("LongLogTag")
     private void setDistanceUnitBinderLocked(int unit) {
-        changeUnitListener.onChangeConsumptionUnit(unit);
+        if (mPropertyClient == null) {
+            Log.d(TAG, "not connected Property Service !");
+            return;
+        }
+        try {
+            mPropertyClient.setProperty(IPropertyService.PROP_DISTANCE_UNIT, new PropertyEvent(IPropertyService.PROP_DISTANCE_UNIT, PropertyEvent.STATUS_AVAILABLE, 0, unit));
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @SuppressLint("LongLogTag")
+    private void setResetBinderLocked() {
+        if (mPropertyClient == null) {
+            Log.d(TAG, "not connected Property Service !");
+            return;
+        }
+        try {
+            mPropertyClient.setProperty(IPropertyService.PROP_RESET, new PropertyEvent(IPropertyService.PROP_RESET, PropertyEvent.STATUS_AVAILABLE, 0, true));
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 
     private class Client implements IBinder.DeathRecipient {
@@ -131,13 +180,13 @@ public class CalculatorListenerFromHMI extends IServiceInterface.Stub {
         Client(IHMIListener listener) {
             mListener = listener;
             mListenerBinder = listener.asBinder();
+            mRegisterCalculatorListener.onRegisterCalculatorSuccess(listener);
             try {
                 mListenerBinder.linkToDeath(this, 0);
             } catch (RemoteException e) {
                 Log.e(TAG, "\"Failed to link death for recipient. " + e);
                 throw new IllegalStateException("Client already dead", e);
             }
-            mClientMap.put(mListenerBinder, this);
         }
 
         @SuppressLint("LongLogTag")
@@ -149,74 +198,52 @@ public class CalculatorListenerFromHMI extends IServiceInterface.Stub {
 
         void release() {
             mListenerBinder.unlinkToDeath(this, 0);
-            mClientMap.remove(mListenerBinder);
+            mRegisterCalculatorListener.unRegisterCalculatorSuccess();
         }
     }
 
-    private void registerCalculatorBinderLocked(IHMIListener listener) {
-        IBinder iBinder = listener.asBinder();
-        Client client = mClientMap.get(iBinder);
-        if(client==null){
-            client = new Client(listener);
-        }
-    }
-
-    private void unregisterCalculatorBinderLocked(IHMIListener listener) {
-        IBinder iBinder = listener.asBinder();
-        Client client = mClientMap.get(iBinder);
-        if(client==null){
-            return;
-        }
-        client.release();
-    }
-
-
-    public CalculatorListenerFromHMI(IChangeUnitListener changeUnitListener) {
-        mHandlerThread = new HandlerThread(TAG);
-        mHandlerThread.start();
-        mHandlerCalculator = new CalculatorServiceHandler(mHandlerThread.getLooper());
-        this.changeUnitListener = changeUnitListener;
-    }
-
-    public List<IHMIListener> getClientHMI(){
-        Set<IBinder> keyBinder = mClientMap.keySet();
-        ArrayList<IHMIListener> clientHMI= new ArrayList<>();
-        for (IBinder binder:keyBinder) {
-            clientHMI.add(mClientMap.get(binder).mListener);
-        }
-        return clientHMI;
-    }
-
+    @SuppressLint("LongLogTag")
     @Override
     public void registerListener(IHMIListener listener) throws RemoteException {
+        Log.d(TAG, " HMIService has been registed ");
         mHandlerCalculator.registerCalculatorListener(listener);
     }
 
+    @SuppressLint("LongLogTag")
     @Override
     public void unregisterListener(IHMIListener listener) throws RemoteException {
+        Log.d(TAG, " HMIService has been unregisted ");
         mHandlerCalculator.unregisterCalculatorListener(listener);
     }
 
+    @SuppressLint("LongLogTag")
     @Override
     public TestCapability getCapability() throws RemoteException {
-        if(capability==null){
-            return null;
-        }
-        return capability;
+        boolean isConsumptionSupported = mConfigurationClient.isSupport(IConfigurationService.CONFIG_CONSUMPTION);
+        boolean isDistanceSupported = mConfigurationClient.isSupport(IConfigurationService.CONFIG_DISTANCE);
+        boolean isResetSupported = mConfigurationClient.isSupport(IConfigurationService.CONFIG_RESET);
+        return new TestCapability(isDistanceSupported, isConsumptionSupported, isResetSupported);
     }
 
+    @SuppressLint("LongLogTag")
     @Override
     public void setDistanceUnit(int unit) throws RemoteException {
+        Log.d(TAG, " HMIService has been set distance unit");
         mHandlerCalculator.setDistanceUnitValue(unit);
     }
 
+    @SuppressLint("LongLogTag")
     @Override
     public void setConsumptionUnit(int unit) throws RemoteException {
+        Log.d(TAG, " HMIService has been set consumption unit");
         mHandlerCalculator.setConsumptionUnitValue(unit);
     }
 
+    @SuppressLint("LongLogTag")
     @Override
     public void resetData() throws RemoteException {
+        Log.d(TAG, " HMIService has been set reset data");
         mHandlerCalculator.resetDataListener();
     }
+
 }

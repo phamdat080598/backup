@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="lg.example.finaltest">
+    package="dcv.finaltest.hmiapplication">
 
     <application
         android:allowBackup="true"
@@ -9,21 +9,25 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".MainActivity">
+        <service
+            android:name=".HMIService"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="dcv.finaltest.BIND" />
+            </intent-filter>
+        </service>
+
+        <activity
+            android:name=".MainActivity"
+            android:label="@string/app_name"
+            android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <service
-            android:name=".framework.CalculatorService"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="lg.example.finaltest.BIND" />
-            </intent-filter>
-        </service>
     </application>
+
 </manifest>
